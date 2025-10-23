@@ -1,19 +1,7 @@
-# AgentsVille Trip Planner - Dependências
-
-# Bibliotecas principais
-openai==1.74.0
-pydantic==2.11.7
-python-dotenv==1.1.0
-
-# Processamento de dados
-pandas==2.3.0
-numexpr==2.11.0
-
-# Utilitários
-json-repair==0.47.1
-
-# Desenvolvimento e testes (opcional)
-pytest>=7.0.0
-black>=23.0.0
-flake8>=6.0.0
-mypy>=1.0.0
+openai>=1.0.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+jupyter>=1.0.0
+pandas>=1.5.0
+json-repair>=0.0.1
+numexpr>=2.8.0

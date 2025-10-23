@@ -769,9 +769,6 @@ def narrate_my_trip(
     """
     if not IPYTHON_AVAILABLE:
         print("IPython display modules not available. Text output only.")
-        display = print
-        Markdown = str
-        Audio = None
 
     prompt = f"""
     Here is information on the trip collected by the Onboarding Agent:
@@ -794,7 +791,14 @@ def narrate_my_trip(
         model=model,
     )
 
-    display(Markdown(resp))
+    # Display the response if IPython is available
+    if IPYTHON_AVAILABLE:
+        try:
+            display(Markdown(resp))
+        except NameError:
+            print(resp)
+    else:
+        print(resp)
 
     # Generate audio narration if possible
     if resp and Audio is not None:
@@ -807,7 +811,10 @@ def narrate_my_trip(
             ) as response:
                 response.stream_to_file(filename)
 
-            display(Audio(filename))
+            if IPYTHON_AVAILABLE and display is not None:
+                display(Audio(filename))
+            else:
+                print(f"Audio narration saved to: {filename}")
         except Exception as e:
             print(f"Failed to generate audio narration: {e}")
     elif not resp:
