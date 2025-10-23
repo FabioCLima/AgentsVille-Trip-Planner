@@ -1,11 +1,41 @@
-"""Provides utility functions for the project."""
+"""Provides utility functions for the AgentsVille Trip Planner project.
 
+This module contains utility classes and functions for managing chat agents,
+activity data, weather information, and trip narration functionality.
+"""
+
+from __future__ import annotations
+
+import datetime
+import textwrap
 from enum import Enum
+from typing import Any, Dict, List, Optional, Union
 
+# Optional IPython imports
+try:
+    from IPython.display import Audio, Markdown, display
+    IPYTHON_AVAILABLE = True
+except ImportError:
+    IPYTHON_AVAILABLE = False
+    Audio = None
+    Markdown = None
+    display = None
+
+# Constants
 SINGLE_TAB_LEVEL = 4
+DEFAULT_BOX_WIDTH = 120
+DEFAULT_AUDIO_FILENAME = "/tmp/my_trip_narration.mp3"
+DEFAULT_TTS_MODEL = "gpt-4o-mini-tts"
+DEFAULT_TTS_VOICE = "coral"
 
 
 class Interest(str, Enum):
+    """Enumeration of available interests for trip planning.
+
+    This enum defines all the supported interest categories that can be used
+    to filter activities and personalize trip recommendations.
+    """
+
     ART = "art"
     COOKING = "cooking"
     COMEDY = "comedy"
@@ -23,10 +53,12 @@ class Interest(str, Enum):
     TENNIS = "tennis"
     WRITING = "writing"
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """Return the string value of the interest."""
         return self.value
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return the string representation of the interest."""
         return self.value
 
 
@@ -38,77 +70,88 @@ class ChatAgent:
     add messages, get responses, and maintain conversation context.
 
     Attributes:
-        system_prompt_template (str): Template for the system prompt using {variable_name} placeholders.
+        name (str): The name of the chat agent.
+        system_prompt (str): The system prompt for the agent.
+        client: The OpenAI client instance.
+        model (str): The model to use for completions.
+        messages (List[Dict[str, str]]): The chat message history.
     """
 
-    system_prompt = "You are a helpful assistant."
-    messages = []
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        client: Optional[Any] = None,
+        model: Optional[str] = None,
+    ) -> None:
+        """Initialize the ChatAgent.
 
-    def __init__(self, name=None, system_prompt=None, client=None, model=None):
+        Args:
+            name: The name of the chat agent. Defaults to class name.
+            system_prompt: The system prompt for the agent.
+            client: The OpenAI client instance.
+            model: The model to use for completions.
+        """
         self.name = name or self.__class__.__name__
-        if system_prompt:
-            self.system_prompt = system_prompt
+        self.system_prompt = system_prompt or "You are a helpful assistant."
         self.client = client
         self.model = model
+        self.messages: List[Dict[str, str]] = []
         self.reset()
 
-    def add_message(self, role, content):
+    def add_message(self, role: str, content: str) -> None:
         """Add a message to the chat history.
 
         Args:
-            role (str): The role of the message ("system", "user", or "assistant").
-            content (str): The content of the message.
+            role: The role of the message ("system", "user", or "assistant").
+            content: The content of the message.
 
         Raises:
             ValueError: If the role is not one of "system", "user", or "assistant".
         """
-        if role not in ["system", "user", "assistant"]:
-            raise ValueError(f"Invalid role: {role}")
-        self.messages.append({"role": role, "content": content})
-        if role == "system":
-            print_in_box(
-                content,
-                f"{self.name} - System Prompt",
-            )
-        elif role == "user":
-            print_in_box(
-                content,
-                f"{self.name} - User Prompt",
-            )
-        elif role == "assistant":
-            print_in_box(
-                content,
-                f"{self.name} - Assistant Response",
-            )
+        valid_roles = {"system", "user", "assistant"}
+        if role not in valid_roles:
+            raise ValueError(f"Invalid role: {role}. Must be one of {valid_roles}")
 
-    def reset(self):
+        self.messages.append({"role": role, "content": content})
+
+        # Display message in appropriate box
+        role_titles = {
+            "system": f"{self.name} - System Prompt",
+            "user": f"{self.name} - User Prompt",
+            "assistant": f"{self.name} - Assistant Response",
+        }
+        print_in_box(content, role_titles[role])
+
+    def reset(self) -> None:
         """Reset the chat history and re-initialize with the system prompt.
 
         This method clears all existing messages and adds the system prompt
-        formatted with the template_kwargs.
+        formatted with proper indentation.
         """
-        from textwrap import dedent
-
-        system_prompt = dedent(self.system_prompt).strip()
+        system_prompt = textwrap.dedent(self.system_prompt).strip()
 
         # Clear previous messages and add the system prompt
         self.messages = []
-        self.add_message(
-            "system",
-            system_prompt,
-        )
+        self.add_message("system", system_prompt)
 
-    def get_response(self, add_to_messages=True, model=None, client=None, **kwargs):
+    def get_response(
+        self,
+        add_to_messages: bool = True,
+        model: Optional[str] = None,
+        client: Optional[Any] = None,
+        **kwargs: Any,
+    ) -> str:
         """Get a response from the OpenAI API.
 
         Args:
-            add_to_messages (bool, optional): Whether to add the response to the chat history
-            using the add_message method and the assistant role. Defaults to True.
+            add_to_messages: Whether to add the response to the chat history.
+            model: The model to use for the completion.
+            client: The OpenAI client to use.
+            **kwargs: Additional arguments to pass to the completion API.
 
         Returns:
-            str: The response from the OpenAI API.
-
-
+            The response from the OpenAI API.
         """
         response = do_chat_completion(
             messages=self.messages,
@@ -120,22 +163,35 @@ class ChatAgent:
             self.add_message("assistant", response)
         return response
 
-    def chat(self, user_message, add_to_messages=True, model=None, **kwargs):
+    def chat(
+        self,
+        user_message: str,
+        add_to_messages: bool = True,
+        model: Optional[str] = None,
+        **kwargs: Any,
+    ) -> str:
         """Send a message to the chat and get a response.
 
         Args:
-            user_message (str): The message to send to the chat.
+            user_message: The message to send to the chat.
+            add_to_messages: Whether to add the response to the chat history.
+            model: The model to use for the completion.
+            **kwargs: Additional arguments to pass to the completion API.
 
         Returns:
-            str: The response from the OpenAI API.
+            The response from the OpenAI API.
         """
         self.add_message("user", user_message)
         return self.get_response(add_to_messages=add_to_messages, model=model, **kwargs)
 
 
-def print_in_box(text, title="", cols=120, tab_level=0):
-    """
-    Prints the given text in a box with the specified title and dimensions.
+def print_in_box(
+    text: str,
+    title: str = "",
+    cols: int = DEFAULT_BOX_WIDTH,
+    tab_level: int = 0,
+) -> None:
+    """Print the given text in a box with the specified title and dimensions.
 
     Args:
         text: The text to print in the box.
@@ -143,59 +199,59 @@ def print_in_box(text, title="", cols=120, tab_level=0):
         cols: The width of the box.
         tab_level: The level of indentation for the box.
     """
-    import textwrap
-
     text = str(text)
 
-    # Make a box using extended ASCII characters
-    if cols < 4 + tab_level * SINGLE_TAB_LEVEL:
-        cols = 4 + tab_level * SINGLE_TAB_LEVEL
+    # Ensure minimum width for readability
+    min_width = 4 + tab_level * SINGLE_TAB_LEVEL
+    if cols < min_width:
+        cols = min_width
 
     tabs = " " * tab_level * SINGLE_TAB_LEVEL
+    box_width = cols - 2 - tab_level * SINGLE_TAB_LEVEL
 
-    top = (
-        tabs
-        + "\u2554"
-        + "\u2550" * (cols - 2 - tab_level * SINGLE_TAB_LEVEL)
-        + "\u2557"
-    )
+    # Create top border
+    top = tabs + "\u2554" + "\u2550" * box_width + "\u2557"
+
     if tab_level == 0:
         print()  # Print a newline before any box at level 0
 
+    # Add title if provided
     if title:
-        # replace the middle of the top with the title
-        title = "[ " + title + " ]"
-        top = top[: (cols - len(title)) // 2] + title + top[(cols + len(title)) // 2 :]
+        title_text = f"[ {title} ]"
+        title_start = (cols - len(title_text)) // 2
+        top = top[:title_start] + title_text + top[title_start + len(title_text) :]
+
     print(top)
 
+    # Print content lines
     for line in text.split("\n"):
-        for wrapped_line in textwrap.wrap(
-            line, cols - 4 - tab_level * SINGLE_TAB_LEVEL
-        ):
-            print(
-                f"{tabs}\u2551 {wrapped_line:<{cols - 4 - tab_level * SINGLE_TAB_LEVEL}} \u2551"
-            )
+        for wrapped_line in textwrap.wrap(line, box_width - 2):
+            print(f"{tabs}\u2551 {wrapped_line:<{box_width - 2}} \u2551")
 
-    print(
-        f"{tabs}\u255a"
-        + "\u2550" * (cols - 2 - tab_level * SINGLE_TAB_LEVEL)
-        + "\u255d"
-    )
+    # Print bottom border
+    print(f"{tabs}\u255a" + "\u2550" * box_width + "\u255d")
 
 
 def do_chat_completion(
-    messages: list[dict[str, str]], model=None, client=None, **kwargs
-):
+    messages: List[Dict[str, str]],
+    model: Optional[str] = None,
+    client: Optional[Any] = None,
+    **kwargs: Any,
+) -> str:
     """A simple wrapper around OpenAI's chat completion API.
 
     Args:
         messages: A list of messages to send to the chat completion API.
+        model: The model to use for the completion.
+        client: The OpenAI client instance.
+        **kwargs: Additional arguments to pass to the completion API.
 
     Returns:
-        str: The response from the chat completion API.
+        The response from the chat completion API.
 
     Raises:
-        openai.OpenAIError: If the chat completion API returns an error.
+        ValueError: If client or model is not provided.
+        RuntimeError: If the OpenAI API returns an error.
 
     Examples:
         >>> messages = [
@@ -210,8 +266,12 @@ def do_chat_completion(
         ...     mock_completions = mock_chat.completions
         ...     mock_create = mock_completions.create
         ...     mock_response = mock_create.return_value
-        ...     mock_response.choices = [type('obj', (object,), {'message': type('msg', (object,), {'content': "I'm good, thanks!"})()})]
-        ...     response = do_chat_completion(messages)
+        ...     mock_response.choices = [type('obj', (object,), {
+        ...         'message': type('msg', (object,), {
+        ...             'content': "I'm good, thanks!"
+        ...         })()
+        ...     })]
+        ...     response = do_chat_completion(messages, model="gpt-4", client=mock_client)
         >>> response
         "I'm good, thanks!"
     """
@@ -221,23 +281,27 @@ def do_chat_completion(
     if model is None:
         raise ValueError("A valid model must be provided.")
 
-    if "response_format" not in kwargs:
-        response = client.chat.completions.create(  # type: ignore
-            model=model,
-            messages=messages,  # type: ignore
-            **kwargs,  # type: ignore
-        )
-    else:
-        response = client.beta.chat.completions.parse(  # type: ignore
-            model=model,
-            messages=messages,  # type: ignore
-            **kwargs,  # type: ignore
-        )
+    try:
+        if "response_format" not in kwargs:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                **kwargs,
+            )
+        else:
+            response = client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                **kwargs,
+            )
 
-    if hasattr(response, "error"):
-        raise RuntimeError(f"OpenAI API returned an error: {str(response.error)}")
+        if hasattr(response, "error"):
+            raise RuntimeError(f"OpenAI API returned an error: {str(response.error)}")
 
-    return response.choices[0].message.content
+        content = response.choices[0].message.content
+        return content if content is not None else ""
+    except Exception as e:
+        raise RuntimeError(f"Error calling OpenAI API: {str(e)}") from e
 
 
 ACTIVITY_CALENDAR = [
@@ -539,30 +603,30 @@ WEATHER_FORECAST = [
 
 
 def call_activities_api_mocked(
-    date: str | None = None,
-    city: str | None = None,
-    activity_ids: list[str] | None = None,
-) -> list[dict[str, str | int]]:
-    """Calls the mocked activities API to get a list of activities for a given date and city.
+    date: Optional[str] = None,
+    city: Optional[str] = None,
+    activity_ids: Optional[List[str]] = None,
+) -> List[Dict[str, Union[str, int, List[str]]]]:
+    """Call the mocked activities API to get a list of activities.
 
-    This function simulates an API call to retrieve activities based on the provided date and city.
+    This function simulates an API call to retrieve activities based on the
+    provided date and city parameters.
 
     Args:
         date: The date to get activities for. Must be in the format YYYY-MM-DD.
         city: The city to get activities for. Only "AgentsVille" is supported.
-        activity_ids: A list of activity IDs to filter the results. If None, all activities for the date and city will be returned.
+        activity_ids: A list of activity IDs to filter the results. If None,
+            all activities for the date and city will be returned.
 
     Returns:
-        A list of activities for the given date and city. Currently only returns activities
-        for AgentsVille between 2025-06-10 and 2025-06-15.
+        A list of activities for the given date and city. Currently only
+        returns activities for AgentsVille between 2025-06-10 and 2025-06-15.
     """
-    import datetime
-
-    # If the city is not AgentsVille, return an empty list
+    # Validate city parameter
     if city and city != "AgentsVille":
         return []
 
-    # Verify the date format
+    # Validate date format
     if date:
         try:
             datetime.datetime.strptime(date, "%Y-%m-%d")
@@ -570,16 +634,34 @@ def call_activities_api_mocked(
             print(f"Invalid date format: {date}")
             return []
 
-    # If the date is not between 2025-06-10 and 2025-06-15, return an empty list
-    if date and (date < "2025-06-10" or date > "2025-06-15"):
-        print(f"Date {date} is outside the valid range (2025-06-10 - 2025-06-15)")
+    # Validate date range
+    valid_start = "2025-06-10"
+    valid_end = "2025-06-15"
+    if date and (date < valid_start or date > valid_end):
+        print(f"Date {date} is outside the valid range ({valid_start} - {valid_end})")
         return []
 
-    activities = ACTIVITY_CALENDAR
+    # Filter activities
+    activities: List[Dict[str, Union[str, int, List[str]]]] = []
+    for event in ACTIVITY_CALENDAR:
+        activity: Dict[str, Union[str, int, List[str]]] = {
+            "activity_id": str(event["activity_id"]),
+            "name": str(event["name"]),
+            "start_time": str(event["start_time"]),
+            "end_time": str(event["end_time"]),
+            "location": str(event["location"]),
+            "description": str(event["description"]),
+            "price": int(event["price"]),  # type: ignore
+            "related_interests": [
+                str(interest)
+                for interest in event["related_interests"]  # type: ignore
+            ],
+        }
+        activities.append(activity)
 
     if date:
         activities = [
-            event for event in activities if event["start_time"].startswith(date)
+            event for event in activities if str(event["start_time"]).startswith(date)
         ]
 
     if activity_ids:
@@ -589,28 +671,43 @@ def call_activities_api_mocked(
 
     if not activities:
         print(f"No activities found for {date} in {city}.")
+
     return activities
 
 
-def call_activity_by_id_api_mocked(activity_id: str):
-    """Calls the mocked activity API to get an activity by its ID.
+def call_activity_by_id_api_mocked(
+    activity_id: str,
+) -> Optional[Dict[str, Union[str, int, List[str]]]]:
+    """Call the mocked activity API to get an activity by its ID.
 
     Args:
         activity_id: The ID of the event to retrieve.
 
     Returns:
-        A dictionary containing the event details, or an empty dictionary if not found.
+        A dictionary containing the event details, or None if not found.
     """
     for event in ACTIVITY_CALENDAR:
         if event["activity_id"] == activity_id:
-            return event
+            return {
+                "activity_id": str(event["activity_id"]),
+                "name": str(event["name"]),
+                "start_time": str(event["start_time"]),
+                "end_time": str(event["end_time"]),
+                "location": str(event["location"]),
+                "description": str(event["description"]),
+                "price": int(event["price"]),  # type: ignore
+                "related_interests": [
+                    str(interest)
+                    for interest in event["related_interests"]  # type: ignore
+                ],
+            }
+
     print(f"Event with ID {activity_id} not found.")
     return None
 
 
-def call_weather_api_mocked(date: str, city: str) -> dict[str, str | int]:
-    """
-    Returns the weather forecast for a given date and city.
+def call_weather_api_mocked(date: str, city: str) -> Dict[str, Union[str, int]]:
+    """Return the weather forecast for a given date and city.
 
     Args:
         date: The date to get weather for. Must be in the format YYYY-MM-DD.
@@ -619,84 +716,99 @@ def call_weather_api_mocked(date: str, city: str) -> dict[str, str | int]:
     Returns:
         A dictionary containing the weather forecast for the given date and city.
     """
-    import datetime
-
-    # If the city is not AgentsVille, return an empty dictionary
+    # Validate city parameter
     if city != "AgentsVille":
         return {}
 
-    # Verify the date format
+    # Validate date format
     try:
         datetime.datetime.strptime(date, "%Y-%m-%d")
     except ValueError:
         print(f"Invalid date format: {date}")
         return {}
 
-    # If the date is not between 2025-06-10 and 2025-06-15, return an empty dictionary
-    if date < "2025-06-10" or date > "2025-06-15":
-        print(f"Date {date} is outside the valid range (2025-06-10 - 2025-06-15)")
+    # Validate date range
+    valid_start = "2025-06-10"
+    valid_end = "2025-06-15"
+    if date < valid_start or date > valid_end:
+        print(f"Date {date} is outside the valid range ({valid_start} - {valid_end})")
         return {}
 
-    return next(
-        (forecast for forecast in WEATHER_FORECAST if forecast["date"] == date), {}
-    )
+    for forecast in WEATHER_FORECAST:
+        if forecast["date"] == date:
+            return {
+                "date": str(forecast["date"]),
+                "city": str(forecast["city"]),
+                "temperature": int(forecast["temperature"]),  # type: ignore
+                "temperature_unit": str(forecast["temperature_unit"]),
+                "condition": str(forecast["condition"]),
+                "description": str(forecast["description"]),
+            }
+
+    return {}
 
 
 def narrate_my_trip(
-    vacation_info, itinerary, client, model, filename="/tmp/my_trip_narration.mp3"
-):
-    """Generate a trip narration with audio (requires IPython for notebooks)."""
-    try:
-        # IPython is an optional dependency for Jupyter notebooks
-        from IPython.display import Audio, Markdown, display  # type: ignore
-    except ImportError:
-        # Fallback when IPython is not available
-        def display(content):
-            print(content)
+    vacation_info: str,
+    itinerary: str,
+    client: Any,
+    model: str,
+    filename: str = DEFAULT_AUDIO_FILENAME,
+) -> None:
+    """Generate and display a narrated trip summary.
 
-        def Markdown(content):
-            return content
+    This function creates a text-based trip summary and optionally generates
+    an audio narration using OpenAI's text-to-speech API.
 
-        def Audio(filename):
-            return f"[Audio file: {filename}]"
+    Args:
+        vacation_info: Information about the trip collected by the Onboarding Agent.
+        itinerary: The final itinerary details.
+        client: The OpenAI client instance.
+        model: The model to use for text generation.
+        filename: The filename to save the audio narration.
+    """
+    if not IPYTHON_AVAILABLE:
+        print("IPython display modules not available. Text output only.")
+        display = print
+        Markdown = str
+        Audio = None
+
+    prompt = f"""
+    Here is information on the trip collected by the Onboarding Agent:
+    {vacation_info}.
+
+    Here is the final itinerary:
+    {itinerary}
+    
+    Introduce the trip (travelers, interests, restrictions, and total cost) and
+    then discuss each day of the itinerary.
+
+    Do not specify the cost of each activity.
+
+    Do not reference the narrative itself in the response.
+    """
 
     resp = do_chat_completion(
-        messages=[
-            {
-                "role": "user",
-                "content": f"""
-                Here is information on the trip collected by the Onboarding Agent:
-                {vacation_info}.
-
-                Here is the final itinerary:
-                {itinerary}
-                
-                Introduce the trip (travelers, interests, restrictions, and total cost) and
-                then discuss each day of the itinerary.
-
-                Do not specify the cost of each activity.
-
-                Do not reference the the narrative itself in the response.
-                """,
-            }
-        ],
+        messages=[{"role": "user", "content": prompt}],
         client=client,
         model=model,
     )
+
     display(Markdown(resp))
 
-    try:
-        if resp:
+    # Generate audio narration if possible
+    if resp and Audio is not None:
+        try:
             with client.audio.speech.with_streaming_response.create(
-                model="gpt-4o-mini-tts",
-                voice="coral",
+                model=DEFAULT_TTS_MODEL,
+                voice=DEFAULT_TTS_VOICE,
                 input=resp,
                 instructions="Speak in a cheerful and positive tone.",
             ) as response:
                 response.stream_to_file(filename)
 
             display(Audio(filename))
-        else:
-            print("No response from the chat completion API.")
-    except Exception:
-        pass
+        except Exception as e:
+            print(f"Failed to generate audio narration: {e}")
+    elif not resp:
+        print("No response from the chat completion API.")

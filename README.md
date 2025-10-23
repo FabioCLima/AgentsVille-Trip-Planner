@@ -1,148 +1,120 @@
-# 🏙️ AgentsVille Trip Planner
+# AgentsVille Trip Planner - Ambiente Local
 
-An advanced AI-powered travel planning system that demonstrates sophisticated LLM reasoning techniques including **Role-Based Prompting**, **Chain-of-Thought Reasoning**, **ReAct Prompting**, and **Feedback Loops**.
+## 📋 O que foi adaptado
 
-## 🎯 Overview
+✅ **Removido**: Todas as referências ao workspace da Udacity  
+✅ **Removido**: Endpoint do Vocareum  
+✅ **Adaptado**: Cliente OpenAI para usar sua API key local  
+✅ **Adaptado**: Modelos para usar os modelos reais da OpenAI (gpt-4o, gpt-4o-mini, etc)  
+✅ **Adicionado**: Carregamento automático do arquivo .env
 
-The AgentsVille Trip Planner is a modular and professional system that uses specialized AI agents to create personalized travel itineraries. The system simulates a fictional city called AgentsVille and provides activities, events, and weather information to plan the perfect trip.
+## 🚀 Como executar
 
-### ✨ Key Features
+### 1. Pré-requisitos
 
-- **🤖 Specialized Agents**: ItineraryAgent and ItineraryRevisionAgent
-- **🔄 ReAct Cycle**: Reasoning + Acting for iterative itinerary revision
-- **📊 Automatic Evaluations**: Robust quality validation system
-- **🛠️ Integrated Tools**: Calculator, activities API, evaluations
-- **🌤️ Weather Compatibility**: Automatic verification of activities vs. weather
-- **💰 Budget Management**: Automatic cost control
-- **📝 Trip Narration**: Narrative summary of the planned experience
-
-## 🏗️ System Architecture
-
-```
-AgentsVille-Trip-Planner/
-├── 📄 main.py              # Main system execution
-├── 📄 models.py             # Pydantic models for data validation
-├── 📄 agents.py             # AI agents (ItineraryAgent, ItineraryRevisionAgent)
-├── 📄 tools.py              # Tools for agents
-├── 📄 evaluations.py        # Quality evaluation functions
-├── 📄 project_lib.py        # Utility library (provided)
-├── 📄 requirements.txt      # Project dependencies
-├── 📄 config.env            # Environment configurations
-├── 📄 tests/                # Automated tests
-└── 📄 README.md             # This file
-```
-
-## 🚀 Installation and Setup
-
-### 1. Prerequisites
-
-- Python 3.8 or higher
-- OpenAI API key (or Vocareum endpoint)
-
-### 2. Installation
+Certifique-se de ter o Python 3.13+ instalado e um ambiente virtual configurado:
 
 ```bash
-# Clone or download the project
-cd AgentsVille-Trip-Planner
-
-# Create a virtual environment using uv (recommended)
-uv venv
-
-# Activate the virtual environment
-source .venv/bin/activate
-
-# Install dependencies using uv
-uv pip install -r requirements.txt
+python3 -m venv .venv
+source .venv/bin/activate  # Linux/Mac
+# ou
+.venv\Scripts\activate  # Windows
 ```
 
-### 3. Configuration
+### 2. Instalar dependências
 
-Edit the `config.env` file with your settings:
-
-```env
-# OpenAI API Configuration
-OPENAI_API_KEY=your_api_key_here
-OPENAI_BASE_URL=https://openai.vocareum.com/v1
-
-# Project Configuration
-DEFAULT_MODEL=gpt-4.1-mini
-MAX_REACT_STEPS=15
-```
-
-## 🎮 How to Use
-
-### Main Execution
+O notebook instalará automaticamente as dependências necessárias, mas você também pode instalá-las manualmente:
 
 ```bash
-python main.py
+pip install json-repair==0.47.1 numexpr==2.11.0 openai==1.74.0 pandas==2.3.0 pydantic==2.11.7 python-dotenv==1.1.0
 ```
 
-This command runs the complete system:
-1. **Phase 1**: Generates an initial itinerary based on travelers' preferences
-2. **Phase 2**: Revises the itinerary using the ReAct cycle to incorporate feedback
-3. **Evaluation**: Verifies that the final plan meets all quality criteria
-4. **Narration**: Generates a narrative summary of the planned trip
+### 3. Configurar .env
 
-### Tests
+O arquivo `.env` já está incluído com suas credenciais:
 
-To run the automated tests:
+```
+OPENAI_API_KEY=sk-proj-...
+TAVILY_API_KEY=tvly-dev-...
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+LANGCHAIN_API_KEY=lsv2_pt_...
+LANGCHAIN_PROJECT=AgentsVille Trip Planner - Fabio Lima
+```
+
+**⚠️ IMPORTANTE**: Verifique se você tem créditos suficientes na sua conta da OpenAI!
+
+### 4. Executar o notebook
 
 ```bash
-python -m pytest
+jupyter notebook project_starter_local.ipynb
+# ou
+code project_starter_local.ipynb  # se estiver usando VS Code
 ```
 
-## 🔧 How It Works
+## 📝 Arquivos incluídos
 
-### 1. ItineraryAgent
-- Collects weather and activity data for requested dates
-- Assembles a system prompt that includes the TravelPlan schema
-- Requests the LLM to return a valid JSON TravelPlan
+- `project_starter_local.ipynb` - Notebook principal (adaptado para ambiente local)
+- `.env` - Variáveis de ambiente com suas credenciais
+- `pyproject.toml` - Configuração do projeto
+- `project_lib.py` - Biblioteca auxiliar (certifique-se de que está no mesmo diretório)
+- `README.md` - Este arquivo
 
-### 2. ItineraryRevisionAgent
-- Implements a ReAct cycle (Reasoning + Acting)
-- Receives the initial TravelPlan and produces THOUGHT and ACTION outputs
-- ACTIONs are structured tool calls (JSON) executed by Python
-- Tool results are sent back as OBSERVATION messages
-- The cycle continues until the agent calls `final_answer_tool`
+## 🔧 Alterações principais
 
-### 3. Evaluation System
-- Verifies dates, budget, costs, and interest coverage
-- Evaluates weather compatibility and feedback incorporation
-- Ensures the final plan meets all quality criteria
+### Antes (Udacity):
+```python
+WORKSPACE_DIRECTORY = "/workspace"
+if os.path.exists(WORKSPACE_DIRECTORY):
+    sys.path.append(WORKSPACE_DIRECTORY)
+    
+client = OpenAI(
+    base_url="https://openai.vocareum.com/v1",
+    api_key=os.getenv("OPENAI_API_KEY"),
+)
 
-## 🛠️ Available Tools
+MODEL = OpenAIModel.GPT_41_MINI  # Modelo Udacity
+```
 
-- **calculator_tool**: Evaluates mathematical expressions for precise calculations
-- **get_activities_by_date_tool**: Retrieves available activities for a specific date
-- **run_evals_tool**: Executes all evaluation functions on the travel plan
-- **final_answer_tool**: Returns the final travel plan
+### Depois (Local):
+```python
+from dotenv import load_dotenv
+load_dotenv()
 
-## 📊 Data Models
+client = OpenAI(
+    api_key=os.getenv("OPENAI_API_KEY")
+)
 
-The system uses Pydantic models for rigorous validation:
+MODEL = OpenAIModel.GPT_4O_MINI  # Modelo OpenAI real
+```
 
-- **VacationInfo**: Trip information (travelers, destination, dates, budget)
-- **TravelPlan**: Complete travel plan with itinerary days
-- **Activity**: Individual activities with complete details
-- **Weather**: Weather conditions for each day
+## 🎯 Modelos disponíveis
 
-## 🎓 Educational Aspects
+O notebook está configurado para usar os modelos reais da OpenAI:
 
-This project demonstrates advanced prompt engineering techniques:
+- `gpt-4o` - Modelo mais poderoso
+- `gpt-4o-mini` - Rápido e acessível ✅ (recomendado)
+- `gpt-4-turbo` - Alternativa robusta  
+- `gpt-3.5-turbo` - Mais econômico
 
-- **Role-Based Prompting**: Agents assume specialized roles
-- **Chain-of-Thought**: Step-by-step reasoning for planning
-- **ReAct Prompting**: Thought-action-observation cycle
-- **Feedback Loops**: Self-evaluation and iterative refinement
+Você pode alterar o modelo na célula onde `MODEL` é definido.
 
-## 📝 License
+## ⚠️ Troubleshooting
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### Erro: "Insufficient budget available"
+**Solução**: Seu crédito da API da OpenAI acabou. Adicione créditos em https://platform.openai.com/account/billing
 
-## 🤝 Contributing
+### Erro: "API Key not found"
+**Solução**: Verifique se o arquivo `.env` está no mesmo diretório do notebook e se a chave está correta.
 
-Contributions are welcome! Please open an issue or pull request to suggest improvements.
+### Erro: "project_lib not found"
+**Solução**: Certifique-se de que o arquivo `project_lib.py` está no mesmo diretório do notebook.
 
----
+## 📞 Próximos passos
 
-**Developed as part of the Udacity AI Engineering course**
+1. ✅ Execute a primeira célula para carregar o .env
+2. ✅ Execute a segunda célula para configurar o cliente OpenAI
+3. ✅ Continue executando as células sequencialmente
+4. ✅ O notebook irá guiá-lo através de todo o processo!
+
+Bom projeto! 🎉
