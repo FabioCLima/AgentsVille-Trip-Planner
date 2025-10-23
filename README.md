@@ -265,5 +265,3 @@ For questions, issues, or contributions:
 - **Documentation**: Refer to inline code documentation and this README
 
 ---
-
-**Built with ❤️ using Python, OpenAI GPT-4, and modern AI engineering practices.**
